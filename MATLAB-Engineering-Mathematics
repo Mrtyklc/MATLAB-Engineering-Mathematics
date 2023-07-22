@@ -1,0 +1,437 @@
+clc;
+clear;
+
+devam = true;
+
+while devam
+    disp('MATLAB Programına Hoş Geldiniz!');
+    disp('Yapmak istediğiniz işlemi seçin:');
+    disp('1. Laplace dönüşümü');
+    disp('2. Parçalı fonksiyon Laplace dönüşümü');
+    disp('3. Heaviside shifting');
+    disp('4. Ters Laplace dönüşümü');
+    disp('5. Rezidü Ters Laplace dönüşümü');
+    disp('6. Karmaşık sayılarda 4 işlem');
+    disp('7. İki karmaşık sayı arası uzaklık');
+    disp('8. İki karmaşık sayı arası uzaklık denklem formunda');
+    disp('9. Karmaşık sayı -> Kutupsal form');
+    disp('10. Kutupsal form -> Karmaşık sayı');
+    disp('11. Kutupsal formda çarpma ve bölme');
+    disp('12. Demoivre kuralı');
+    disp('13. Cauchy-Riemann denklemleri');
+    disp('14. Analitik ve harmonik fonksiyonlar');
+    disp('15. Eğrisel integral');
+    disp('16. Düzlemde Green teoremi');
+    
+    secim = input('Seçiminizi yapın (1-16): ');
+    
+    switch secim
+        case 1
+            disp('Laplace dönüşümü seçildi.');
+F_input = input('Giriş fonksiyonunu girin (t ile ifade edilen değişkeni kullanın): ', 's');
+F = str2sym(F_input);
+syms s t x
+F_laplace = laplace(F, t, s);
+[num, den] = numden(F_laplace);
+num_simplified = simplify(num);
+den_simplified = simplify(den);
+fprintf('Laplace Dönüşümü: F(s) = \n');
+disp(char(num_simplified));
+fprintf('---------------------------------\n');
+disp(char(den_simplified));
+
+            
+        case 2
+            disp('Parçalı fonksiyon Laplace dönüşümü seçildi.');
+syms x a t s
+num_pieces = input('Parçalı fonksiyonların sayısını girin: ');
+functions = cell(1, num_pieces);
+for i = 1:num_pieces
+    fprintf('Parça %d:\n', i);
+    has_lower_bound = input('Alt sınır var mı? (e/h): ', 's');
+    if strcmpi(has_lower_bound, 'e')
+        lower_bound = input('Alt sınır değerini girin: ');
+        include_lower_bound = input('Alt sınıra dahil mi? (e/h): ', 's');
+        if strcmpi(include_lower_bound, 'e')
+            lower_op = @(t) t >= lower_bound;
+        else
+            lower_op = @(t) t > lower_bound;
+        end
+    else
+        lower_op = @(t) true;
+    end
+    has_upper_bound = input('Üst sınır var mı? (e/h): ', 's');
+    if strcmpi(has_upper_bound, 'e')
+        upper_bound = input('Üst sınır değerini girin: ');
+        include_upper_bound = input('Üst sınıra dahil mi? (e/h): ', 's');
+        if strcmpi(include_upper_bound, 'e')
+            upper_op = @(t) t <= upper_bound;
+        else
+            upper_op = @(t) t < upper_bound;
+        end
+    else
+        upper_op = @(t) true;
+    end
+    
+    func_str = input('Fonksiyonu girin: ', 's');
+    f = str2func(['@(t)' func_str]);
+    
+    functions{i} = {f, lower_op, upper_op};
+end
+
+for i = 1:num_pieces
+    f = functions{i}{1};
+    lower_op = functions{i}{2};
+    upper_op = functions{i}{3};
+    
+    F = laplace(@(t) f(t).*lower_op(t).*upper_op(t), t, s);
+    
+    if isequal(F, 0)
+        F_str = '0';
+    else
+        F_str = char(F);
+    end
+    
+    fprintf('Parça %d: F(s) = %s\n', i, F_str);
+end
+
+            
+        case 3
+            disp('Heaviside shifting seçildi.');
+syms t s x
+f1_coeff = input('f1 katsayısını girin: ');
+f1_shift = input('f1 kaydırma miktarını girin: ');
+f2_coeff = input('f2 katsayısını girin: ');
+f2_shift = input('f2 kaydırma miktarını girin: ');
+f1 = f1_coeff * (t - f1_shift) * heaviside(t - f1_shift);
+f2 = f2_coeff * heaviside(t - f2_shift);
+F = laplace(f1) + laplace(f2);
+[num, den] = numden(F);
+num_simplified = simplify(num);
+den_simplified = simplify(den);
+fprintf('Laplace Dönüşümü: F(s) = \n');
+disp(char(num_simplified));
+fprintf('---------------------------------\n');
+disp(char(den_simplified));
+
+            
+        case 4
+            disp('Ters Laplace dönüşümü seçildi.');
+syms s t x
+F_input = input('Giriş fonksiyonunu girin (s ile ifade edilen değişkeni kullanın): ', 's');
+F = str2sym(F_input);
+f = ilaplace(F, s, t);
+[num, den] = numden(f);
+num_simplified = simplify(num);
+den_simplified = simplify(den);
+fprintf('Ters Laplace Dönüşümü: f(t) = \n');
+disp(char(num_simplified));
+fprintf('---------------------------------\n');
+disp(char(den_simplified));
+
+            
+        case 5
+            disp('Rezidü Ters Laplace dönüşümü seçildi.');
+syms s t x z
+F = input('Laplace dönüşümünü almak istediğiniz fonksiyonu girin: ');
+R = input('Rezidüleri girin: ');
+P = input('Kutupları girin: ');
+
+f = ilaplace(sum(R./(s-P)), s, t);
+disp('Ters Laplace dönüşümü:');
+disp(f);
+
+            
+        case 6
+            disp('Karmaşık sayılarda 4 işlem seçildi.');
+% Karmaşık sayılar için dört işlem yapma
+real1 = input('Birinci karmaşık sayının gerçek kısmını girin: ');
+imag1 = input('Birinci karmaşık sayının sanal kısmını girin: ');
+real2 = input('İkinci karmaşık sayının gerçek kısmını girin: ');
+imag2 = input('İkinci karmaşık sayının sanal kısmını girin: ');
+num1 = complex(real1, imag1);
+num2 = complex(real2, imag2);
+addition = num1 + num2;
+subtraction = num1 - num2;
+multiplication = num1 * num2;
+division = num1 / num2;
+% Sonuçları ekrana yazdır
+fprintf('Toplama: %s\n', num2str(addition));
+fprintf('Çıkarma: %s\n', num2str(subtraction));
+fprintf('Çarpma: %s\n', num2str(multiplication));
+fprintf('Bölme: %s\n', num2str(division));
+
+        case 7
+            disp('İki karmaşık sayı arası uzaklık seçildi.');
+% İki karmaşık sayı arası uzaklık hesaplama
+real1 = input('Birinci karmaşık sayının gerçek kısmını girin: ');
+imag1 = input('Birinci karmaşık sayının sanal kısmını girin: ');
+real2 = input('İkinci karmaşık sayının gerçek kısmını girin: ');
+imag2 = input('İkinci karmaşık sayının sanal kısmını girin: ');
+num1 = complex(real1, imag1);
+num2 = complex(real2, imag2);
+distance = abs(num1 - num2);
+fprintf('İki karmaşık sayı arası uzaklık: %f\n', distance);
+
+            
+        case 8
+            disp('İki karmaşık sayı arası uzaklık denklem formunda seçildi.');
+% Karmaşık sayı denklemi çözme
+equation_str = input('Denklemi girin (örn: |z-1+i|=2): ', 's');
+z = sym('z');
+expression = strrep(equation_str, '|', '');
+expression = strrep(expression, '=', '==');
+expression = strrep(expression, 'z', 'z');
+eq = eval(['@(z) simplify(' expression ')']);
+solutions = solve(eq, z);
+x_formula = formula(real(solutions));
+y_formula = formula(imag(solutions));
+fprintf('Denklem: %s\n', equation_str);
+fprintf('Çözümler: \n');
+for i = 1:length(solutions)
+    fprintf('x = %s, y = %s\n', char(x_formula(i)), char(y_formula(i)));
+end
+
+            
+        case 9
+            disp('Karmaşık sayı -> Kutupsal form seçildi.');
+% Karmaşık sayının kutupsal formda gösterimi
+real_part = input('Gerçek bileşeni girin: ');
+imag_part = input('Sanal bileşeni girin: ');
+r = abs(complex(real_part, imag_part));
+angle_deg = rad2deg(angle(complex(real_part, imag_part)));
+fprintf('Karmaşık Sayı: %g + %gi\n', real_part, imag_part);
+fprintf('Kutupsal Form: %g * (cos(%g°) + i * sin(%g°))\n', r, angle_deg, angle_deg);
+
+            
+        case 10
+            disp('Kutupsal form -> Karmaşık sayı seçildi.');
+% Karmaşık sayının düzlemsel formdaki gösterimi
+r = input('r değerini girin: ');
+angle_deg = input('Açı değerini girin (derece): ');
+angle_rad = deg2rad(angle_deg);
+real_part = r * cos(angle_rad);
+imag_part = r * sin(angle_rad);
+fprintf('r: %g, Açı: %g°\n', r, angle_deg);
+if imag_part >= 0
+    fprintf('Düzlemsel Form: %g + %gi\n', real_part, imag_part);
+else
+    fprintf('Düzlemsel Form: %g - %gi\n', real_part, abs(imag_part));
+end
+
+            
+        case 11
+            disp('Kutupsal formda çarpma ve bölme seçildi.');
+% Karmaşık sayıların kutupsal formda çarpma ve bölme işlemi
+r1 = input('İlk karmaşık sayının r değerini girin: ');
+angle1_deg = input('İlk karmaşık sayının açı değerini girin (derece): ');
+r2 = input('İkinci karmaşık sayının r değerini girin: ');
+angle2_deg = input('İkinci karmaşık sayının açı değerini girin (derece): ');
+angle1_rad = deg2rad(angle1_deg);
+angle2_rad = deg2rad(angle2_deg);
+z1 = r1 * exp(1i * angle1_rad);
+z2 = r2 * exp(1i * angle2_rad);
+z_mult = z1 * z2;
+z_div = z1 / z2;
+fprintf('İlk Karmaşık Sayı: r = %g, Açı = %g°\n', r1, angle1_deg);
+fprintf('İkinci Karmaşık Sayı: r = %g, Açı = %g°\n', r2, angle2_deg);
+fprintf('Çarpma Sonucu: %g * (cos(%g°) + i * sin(%g°))\n', abs(z_mult), rad2deg(angle(z_mult)), rad2deg(angle(z_mult)));
+fprintf('Bölme Sonucu: %g * (cos(%g°) + i * sin(%g°))\n', abs(z_div), rad2deg(angle(z_div)), rad2deg(angle(z_div)));
+
+            
+        case 12
+            disp('Demoivre kuralı seçildi.');
+% De Moivre Kuralı ile işlem yapan MATLAB kodu
+fprintf('1) Tek bir karmaşık sayı üzerinde işlem yap\n');
+fprintf('2) İki karmaşık sayı üzerinde işlem yap\n');
+choice = input('Seçiminizi girin (1 veya 2): ');
+if choice == 1
+    fprintf('1) Polar formunda (r, θ)\n');
+    fprintf('2) Karmaşık sayı formunda (x + yi)\n');
+    format_choice = input('Karmaşık sayının nasıl verildiğini seçin (1 veya 2): ');
+    if format_choice == 1
+        r = input('Karmaşık sayının r değerini girin: ');
+        theta_deg = input('Karmaşık sayının açı değerini girin (derece): ');
+        theta_rad = deg2rad(theta_deg);
+        z = r * exp(1i * theta_rad);
+    else
+        x = input('Karmaşık sayının gerçek kısmını girin: ');
+        y = input('Karmaşık sayının sanal kısmını girin: ');
+        z = x + 1i * y;
+    end
+    degree = input('Derecesini girin: ');
+    result = z^degree;
+    fprintf('Sonuç: %g * (cos(%g°) + i * sin(%g°))\n', abs(result), rad2deg(angle(result)), rad2deg(angle(result)));
+    fprintf('Sonuç (Karmaşık Sayı Formu): %g + %gi\n', real(result), imag(result));
+else
+    fprintf('1) Polar formunda (r, θ)\n');
+    fprintf('2) Karmaşık sayı formunda (x + yi)\n');
+    format_choice = input('Karmaşık sayıların nasıl verildiğini seçin (1 veya 2): ');
+    if format_choice == 1
+        r1 = input('İlk karmaşık sayının r değerini girin: ');
+        theta1_deg = input('İlk karmaşık sayının açı değerini girin (derece): ');
+        r2 = input('İkinci karmaşık sayının r değerini girin: ');
+        theta2_deg = input('İkinci karmaşık sayının açı değerini girin (derece): ');
+        theta1_rad = deg2rad(theta1_deg);
+        theta2_rad = deg2rad(theta2_deg);
+        z1 = r1 * exp(1i * theta1_rad);
+        z2 = r2 * exp(1i * theta2_rad);
+    else
+        x1 = input('İlk karmaşık sayının gerçek kısmını girin: ');
+        y1 = input('İlk karmaşık sayının sanal kısmını girin: ');
+        x2 = input('İkinci karmaşık sayının gerçek kısmını girin: ');
+        y2 = input('İkinci karmaşık sayının sanal kısmını girin: ');
+        z1 = x1 + 1i * y1;
+        z2 = x2 + 1i * y2;
+    end
+    power1 = input('İlk karmaşık sayının kuvvetini girin: ');
+    power2 = input('İkinci karmaşık sayının kuvvetini girin: ');
+    multiply_result = z1 * z2;
+    divide_result = z1 / z2;
+    fprintf('Çarpma Sonucu: %g * (cos(%g°) + i * sin(%g°))\n', abs(multiply_result), rad2deg(angle(multiply_result)), rad2deg(angle(multiply_result)));
+    fprintf('Çarpma Sonucu (Karmaşık Sayı Formu): %g + %gi\n', real(multiply_result), imag(multiply_result));
+    fprintf('Bölme Sonucu: %g * (cos(%g°) + i * sin(%g°))\n', abs(divide_result), rad2deg(angle(divide_result)), rad2deg(angle(divide_result)));
+    fprintf('Bölme Sonucu (Karmaşık Sayı Formu): %g + %gi\n', real(divide_result), imag(divide_result));
+end
+
+            
+        case 13
+            disp('Cauchy-Riemann denklemleri seçildi.');
+% Gerçek ve sanal kısımları al
+real_part = input('Gerçek kısmı girin: ', 's');
+imaginary_part = input('Sanal kısmı girin: ', 's');
+
+% Sembolik değişkenleri tanımla
+syms x y
+
+% Fonksiyonları tanımla
+u = str2sym(real_part); % Gerçek kısmı u olarak tanımla
+v = str2sym(imaginary_part); % Sanal kısmı v olarak tanımla
+
+% dv/dx, dv/dy, du/dx, du/dy değerlerini hesapla
+dv_dx = simplify(diff(v, x));
+dv_dy = simplify(diff(v, y));
+du_dx = simplify(diff(u, x));
+du_dy = simplify(diff(u, y));
+
+% Cauchy-Riemann denklemini kontrol et
+if simplify(dv_dx) == simplify(-du_dy) && simplify(dv_dy) == simplify(du_dx)
+    % Türevlenebilir ise sonucu bastır
+    f_prime = simplify(dv_dx + 1i * du_dx); % türevi hesapla
+    disp(['f''(z) = ' char(f_prime)]);
+else
+    % Türevlenebilir değilse uyarı mesajı ver
+    disp('Hesaplanamaz!');
+end
+
+            
+        case 14
+            disp('Analitik ve harmonik fonksiyonlar seçildi.');
+syms x y z
+% Karmaşık sayıyı giriş olarak al
+real_part = input('Gerçek kısmı girin: ');
+imaginary_part = input('Sanal kısmı girin: ');
+% Karmaşık sayıyı sembolik değişken olarak tanımla
+z = x + 1i * y;
+% Analitik fonksiyon kontrolü
+is_analytic = isAlways(diff(z, x) == diff(z, y), 'Unknown', 'false');
+% Harmonik fonksiyon kontrolü
+is_harmonic = isAlways(diff(diff(z, x), x) + diff(diff(z, y), y) == 0, 'Unknown', 'false');
+% Tam fonksiyon kontrolü
+is_entire = isAlways(isfinite(z), 'Unknown', 'false');
+% Türevlenebilirlik kontrolü
+is_differentiable = isAlways(diff(z, x) ~= Inf, 'Unknown', 'false');
+% Sonuçları ekrana yazdır
+disp(['Analitik fonksiyon mu? ' num2str(is_analytic)]);
+disp(['Harmonik fonksiyon mu? ' num2str(is_harmonic)]);
+disp(['Tam fonksiyon mu? ' num2str(is_entire)]);
+disp(['Türevlenebilir mi? ' num2str(is_differentiable)]);
+
+            
+        case 15
+            disp('Eğrisel integral seçildi.');
+% Eğriyi temsil eden fonksiyonu girin
+curve_function = input('Eğriyi temsil eden fonksiyonu girin: ');
+
+% Parametrik denklemi girin
+parametric_eq_x = input('Parametrik denklem (x(t)) girin: ');
+parametric_eq_y = input('Parametrik denklem (y(t)) girin: ');
+
+% Parametre aralığını belirleyin
+t_start = input('Parametre aralığının başlangıç değeri (t_start): ');
+t_end = input('Parametre aralığının bitiş değeri (t_end): ');
+
+% Adım sayısını belirleyin
+n = input('Adım sayısını belirleyin: ');
+
+% Parametre aralığını n adım için bölelim
+delta_t = (t_end - t_start) / n;
+
+% Simpson kuralını kullanarak eğrisel integralin yaklaşık değerini hesaplayın
+integral_value = 0;
+for i = 1:n
+    t_i = t_start + (i-1) * delta_t;
+    x_i = subs(parametric_eq_x, t, t_i);
+    y_i = subs(parametric_eq_y, t, t_i);
+    f_i = subs(curve_function, [x, y], [x_i, y_i]);
+    
+    t_i_plus_half = t_start + (i-0.5) * delta_t;
+    x_i_plus_half = subs(parametric_eq_x, t, t_i_plus_half);
+    y_i_plus_half = subs(parametric_eq_y, t, t_i_plus_half);
+    f_i_plus_half = subs(curve_function, [x, y], [x_i_plus_half, y_i_plus_half]);
+    
+    integral_value = integral_value + (delta_t / 6) * (f_i + 4 * f_i_plus_half);
+end
+
+% Sonucu ekrana yazdırın
+disp(['Eğrisel integralin yaklaşık değeri: ' num2str(integral_value)]);
+
+            
+        case 16
+            disp('Düzlemde Green teoremi seçildi.');
+syms x y
+
+% Kapalı eğriyi temsil eden fonksiyonu girin
+curve_function = input('Kapalı eğriyi temsil eden fonksiyonu girin: ');
+
+% Eğriye ait parametrik denklemi girin
+parametric_eq_x = input('Parametrik denklem (x(t)) girin: ');
+parametric_eq_y = input('Parametrik denklem (y(t)) girin: ');
+
+% Vektör alanını temsil eden fonksiyonu girin
+vector_field = input('Vektör alanını temsil eden fonksiyonu girin: ');
+
+% Parametre aralığını belirleyin
+t_start = input('Parametre aralığının başlangıç değeri (t_start): ');
+t_end = input('Parametre aralığının bitiş değeri (t_end): ');
+
+% Parametre aralığını ve parametrik denklemleri kullanarak eğriyi oluşturun
+t = sym('t');
+x_t = subs(parametric_eq_x, t, t_start:0.01:t_end);
+y_t = subs(parametric_eq_y, t, t_start:0.01:t_end);
+
+% Eğrinin çevresi boyunca vektör alanının integralini hesaplayın
+circulation = integral(vector_field(1), x_t, y_t) + integral(vector_field(2), x_t, y_t);
+
+% Eğrinin sınırladığı alanın üzerindeki vektör alanının integralini hesaplayın
+flux = integral2(vector_field(1), x_t(1), x_t(end), y_t(1), y_t(end)) + ...
+        integral2(vector_field(2), x_t(1), x_t(end), y_t(1), y_t(end));
+
+% Sonuçları ekrana yazdırın
+disp(['Eğrinin çevresi boyunca vektör alanının integrali: ' num2str(circulation)]);
+disp(['Eğrinin sınırladığı alanın üzerindeki vektör alanının integrali: ' num2str(flux)]);
+
+        otherwise
+            disp('Geçersiz bir seçim yaptınız.');
+    end
+    
+    devam_secim = input('Yeni bir işlem yapmak istiyor musunuz? (Evet: 1 / Hayır: 0): ');
+    if devam_secim == 0
+        devam = false;
+    end
+    
+    disp('-----------------------------------');
+end
+
+disp('MATLAB Programından çıkılıyor. İyi günler!');
+            
